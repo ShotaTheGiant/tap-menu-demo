@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TapMenu Ordering App</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:#0f0f10;
+  color:white;
+}
+
+.app{
+  max-width:500px;
+  margin:auto;
+  min-height:100vh;
+  background:#111214;
+}
+
+.header{
+  padding:18px;
+  border-bottom:1px solid #1f1f22;
+}
+
+.logo{font-size:1.8rem;font-weight:800;}
+.gold{color:#d4af37;}
+
+.hero{padding:20px;}
+.hero-card{
+  background:#1b1b1d;
+  padding:20px;
+  border-radius:20px;
+}
+
+.category-title{
+  padding:18px;
+  font-weight:700;
+}
+
+.menu-grid{
+  padding:0 18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.item-card{
+  background:#18191c;
+  border-radius:20px;
+  padding:15px;
+}
+
+.primary-btn{
+  width:100%;
+  padding:14px;
+  background:#d4af37;
+  border:none;
+  border-radius:14px;
+  font-weight:700;
+}
+
+.cart-bar{
+  position:fixed;
+  bottom:10px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#d4af37;
+  color:black;
+  padding:15px;
+  border-radius:20px;
+  display:none;
+}
+
+.cart-bar.active{display:flex;}
+
+.cart-screen,.confirmation-screen,.admin-screen,.login-screen{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:#111214;
+  z-index:200;
+}
+
+.screen-header{
+  padding:18px;
+  border-bottom:1px solid #1f1f22;
+}
+
+.input{
+  width:100%;
+  padding:14px;
+  margin-bottom:10px;
+  border-radius:12px;
+  border:none;
+  background:#1c1d20;
+  color:white;
+}
+
+.admin-toggle{
+  position:fixed;
+  top:20px;
+  right:20px;
+  background:#d4af37;
+  border:none;
+  width:50px;
+  height:50px;
+  border-radius:50%;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<button class="admin-toggle" onclick="openAdmin()">⚙</button>
+
+<div class="header">
+  <div class="logo">Tap<span class="gold">Menu</span></div>
+</div>
+
+<div class="hero">
+  <div class="hero-card">
+    <h1>Order Food</h1>
+    <button class="primary-btn">Start</button>
+  </div>
+</div>
+
+<div id="menu-container"></div>
+
+<div class="cart-bar" id="cartBar" onclick="openCart()">
+  <span id="cartSummary"></span>
+</div>
+
+</div>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="screen-header">
+    <h2>Admin Login</h2>
+  </div>
+
+  <div style="padding:20px;">
+    <input class="input" id="username" placeholder="Username"/>
+    <input class="input" id="password" placeholder="Password" type="password"/>
+    <button class="primary-btn" onclick="loginAdmin()">Login</button>
+    <p id="loginError"></p>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="admin-screen" id="adminScreen">
+  <div class="screen-header">
+    <button onclick="closeAdmin()">←</button>
+    <h2>Orders</h2>
+  </div>
+  <div id="adminOrders"></div>
+</div>
+
+<!-- CART -->
+<div class="cart-screen" id="cartScreen">
+  <div class="screen-header">
+    <button onclick="closeCart()">←</button>
+    <h2>Cart</h2>
+  </div>
+
+  <div id="cartItems"></div>
+
+  <input class="input" id="tableNumber" placeholder="Table number"/>
+
+  <button class="primary-btn" onclick="finishOrder()">Finish Order</button>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirmation-screen" id="confirmationScreen">
+  <div class="screen-header">
+    <button onclick="closeConfirmation()">←</button>
+    <h2>Order</h2>
+  </div>
+
+  <div id="confirmationContent" style="padding:20px;"></div>
+</div>
+
+<script>
+const menu=[
+{category:'Food',items:[
+{id:1,name:'Pizza',price:10},
+{id:2,name:'Burger',price:8}
+]}
+];
+
+let cart=[];
+let orders=JSON.parse(localStorage.getItem('orders'))||[];
+
+function renderMenu(){
+const container=document.getElementById('menu-container');
+container.innerHTML='';
+
+menu.forEach(cat=>{
+cat.items.forEach(item=>{
+const div=document.createElement('div');
+div.innerHTML=`
+<div class="item-card">
+<h3>${item.name}</h3>
+<p>${item.price} BGN</p>
+<button class="primary-btn" onclick="addToCart(${item.id})">Add</button>
+</div>
+`;
+container.appendChild(div);
+});
+});
+}
+
+function addToCart(id){
+const item=menu[0].items.find(i=>i.id===id);
+cart.push({...item,quantity:1});
+updateCart();
+}
+
+function updateCart(){
+const bar=document.getElementById('cartBar');
+if(cart.length>0){
+bar.classList.add('active');
+bar.innerText=cart.length+" items";
+}else{
+bar.classList.remove('active');
+}
+}
+
+function openCart(){
+document.getElementById('cartScreen').style.display='block';
+}
+
+function closeCart(){
+document.getElementById('cartScreen').style.display='none';
+}
+
+function finishOrder(){
+const table=document.getElementById('tableNumber').value||'1';
+const orderNumber='TM'+Math.floor(Math.random()*10000);
+
+const order={
+table,
+orderNumber,
+items:[...cart],
+status:'New'
+};
+
+orders.push(order);
+localStorage.setItem('orders',JSON.stringify(orders));
+localStorage.setItem('lastOrder',JSON.stringify(order));
+
+document.getElementById('confirmationContent').innerHTML=`
+<h2>Success</h2>
+<p>Table: ${table}</p>
+<p>Order: ${orderNumber}</p>
+<p>Status: <span id="orderStatus">New</span></p>
+`;
+
+cart=[];
+updateCart();
+closeCart();
+document.getElementById('confirmationScreen').style.display='block';
+
+renderAdmin();
+}
+
+function closeConfirmation(){
+document.getElementById('confirmationScreen').style.display='none';
+}
+
+function openAdmin(){
+document.getElementById('loginScreen').style.display='block';
+}
+
+function closeAdmin(){
+document.getElementById('adminScreen').style.display='none';
+}
+
+function loginAdmin(){
+const u=document.getElementById('username').value;
+const p=document.getElementById('password').value;
+
+if(u==='not found'&&p==='000'){
+document.getElementById('loginScreen').style.display='none';
+document.getElementById('adminScreen').style.display='block';
+renderAdmin();
+}else{
+document.getElementById('loginError').innerText='Wrong';
+}
+}
+
+function renderAdmin(){
+const admin=document.getElementById('adminOrders');
+admin.innerHTML='';
+
+orders.forEach((o,i)=>{
+const div=document.createElement('div');
+div.innerHTML=`
+<div style="padding:15px;border-bottom:1px solid gray;">
+<p>${o.orderNumber}</p>
+<p>${o.status}</p>
+
+<button onclick="setStatus(${i},'New')">New</button>
+<button onclick="setStatus(${i},'Cooking')">Cooking</button>
+<button onclick="setStatus(${i},'Ready')">Ready</button>
+</div>
+`;
+admin.appendChild(div);
+});
+}
+
+function setStatus(i,status){
+orders[i].status=status;
+localStorage.setItem('orders',JSON.stringify(orders));
+renderAdmin();
+}
+
+function updateCustomerStatus(){
+const last=JSON.parse(localStorage.getItem('lastOrder'));
+if(!last)return;
+
+const found=orders.find(o=>o.orderNumber===last.orderNumber);
+if(found){
+const el=document.getElementById('orderStatus');
+if(el) el.innerText=found.status;
+}
+}
+
+setInterval(updateCustomerStatus,2000);
+
+renderMenu();
+</script>
+
+</body>
+</html>
